@@ -1,0 +1,19 @@
+# PyTorch with CUDA support
+--index-url https://download.pytorch.org/whl/cu124
+torch>=2.6.0
+torchvision>=0.20.0
+torchaudio>=2.6.0
+
+# Core scientific computing
+numpy>=1.24.0
+
+# Medical imaging - DICOM processing
+pydicom>=2.4.0
+SimpleITK>=2.3.0
+
+# Visualization and plotting
+matplotlib>=3.7.0
+
+# Jupyter notebook support
+jupyter>=1.0.0
+ipykernel>=6.25.0

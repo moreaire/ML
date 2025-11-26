@@ -1,0 +1,256 @@
+# Medical Physics .gitignore
+# This file prevents accidentally committing sensitive data and large files
+
+# ============================================================================
+# CRITICAL: Protected Health Information (PHI) and Medical Data
+# ============================================================================
+
+# DICOM files - Medical imaging data
+*.dcm
+*.DCM
+*.dicom
+*.DICOM
+
+# Common medical image formats
+*.nii
+*.nii.gz
+*.mha
+*.mhd
+*.nrrd
+*.raw
+*.img
+*.hdr
+
+# Radiation therapy planning files
+*.dcm.zip
+*RTPLAN*
+*RTDOSE*
+*RTSTRUCT*
+*RTIMAGE*
+*.pinnacle
+*.eclipse
+
+# Data directories
+data/
+Data/
+DICOM/
+dicom/
+patient_data/
+Patient_data/
+PHI/
+phi/
+scans/
+Scans/
+images/
+Images/
+
+# ============================================================================
+# Credentials and Secrets
+# ============================================================================
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Authentication
+credentials.json
+secrets.json
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+id_rsa
+id_rsa.pub
+*.ssh
+
+# API keys and tokens
+*_token.txt
+*_apikey.txt
+*_secret.txt
+
+# Database credentials
+*.db-connection
+database.yml
+
+# ============================================================================
+# Python
+# ============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# Conda
+.conda/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# ============================================================================
+# Large Files and Binary Data
+# ============================================================================
+
+# Archives
+*.zip
+*.tar.gz
+*.tar.bz2
+*.rar
+*.7z
+
+# Large data files
+*.csv
+*.h5
+*.hdf5
+*.mat
+*.npz
+*.pkl
+*.pickle
+
+# Video files
+*.mp4
+*.avi
+*.mov
+*.wmv
+
+# Backup files
+*.bak
+*.backup
+*.swp
+*.swo
+*~
+
+# ============================================================================
+# IDEs and Editors
+# ============================================================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+
+# Jupyter
+.jupyter/
+
+# Spyder
+.spyderproject
+.spyproject
+
+# ============================================================================
+# Operating System
+# ============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.Trash-*
+.nfs*
+
+# ============================================================================
+# Logs and Temporary Files
+# ============================================================================
+
+*.log
+logs/
+*.tmp
+*.temp
+temp/
+tmp/
+
+# ============================================================================
+# Medical Physics Specific
+# ============================================================================
+
+# QA results with patient info
+*_qa_results.pdf
+*_patient_report.pdf
+
+# Exported patient data
+*export*.csv
+*patient*.xlsx
+*patient*.xls
+
+# Treatment planning exports
+*TPS_export*
+*plan_export*
+
+# Calibration data (may contain serial numbers)
+calibration_*/
+*.cal
+
+# ============================================================================
+# Project Specific (Uncomment as needed)
+# ============================================================================
+
+# Uncomment if you're working with these:
+# *.pdf  # Caution: This blocks ALL PDFs
+# *.docx
+# *.xlsx
+# *.pptx
+
+# ============================================================================
+# ALLOWED EXCEPTIONS
+# ============================================================================
+
+# If you need to commit specific files that match above patterns,
+# use git add -f filename to force add them, or add exceptions here:
+# !docs/*.pdf
+# !examples/sample.dcm
