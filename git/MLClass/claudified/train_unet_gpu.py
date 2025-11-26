@@ -15,13 +15,13 @@ Date: 2025-11-25
 
 # ============= CPU THREAD CONTROL & GPU SETUP =============
 import os
-os.environ['OMP_NUM_THREADS'] = '4'
-os.environ['MKL_NUM_THREADS'] = '4'
-os.environ['NUMEXPR_NUM_THREADS'] = '4'
-os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib-config'  # Fix matplotlib warning
+os.environ['OMP_NUM_THREADS'] = '4' #Prevents uncontolled usage of CPU to 4 threads with OpenMP (Used by PyTorch)
+os.environ['MKL_NUM_THREADS'] = '4' #Avoids resource overload of the Intel MKL (Math Kernel Library) by limiting to 4 threads
+os.environ['NUMEXPR_NUM_THREADS'] = '4' #Similar as above. Set for consistency
+os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib-config'  # Fix matplotlib warning - makes sure matplotlib has a writable directory instead of a temporary one
 
 import torch
-torch.set_num_threads(4)
+torch.set_num_threads(4) #Controls the number of threads each operation (matrix multiplication, convolution) in pytorch can use
 torch.set_num_interop_threads(2)
 # ==========================================================
 
@@ -33,6 +33,7 @@ import random
 import numpy as np
 import pydicom
 import matplotlib.pyplot as plt
+import time
 from torch.utils.data import Dataset, DataLoader
 import torch.nn as nn
 import torch.nn.functional as F
@@ -48,14 +49,14 @@ ROOT = Path("/config/workspace/git/MLClass/ML project")  # ← CHANGE THIS!
 RNG_SEED = 42
 VAL_FRACTION = 0.15   # of TRAIN (patient-wise)
 TEST_FRACTION = 0.20  # patient-wise
-TARGET_SIZE = (256, 256)  # (H, W)
+TARGET_SIZE = (256, 256)  # (H, W). Standardizes the input image size
 
 # GPU Training Parameters
 BATCH_SIZE = 16        # Optimized for RTX 4090 (can increase to 32-64)
 NUM_WORKERS = 4        # Parallel data loading
-NUM_EPOCHS = 120
-LEARNING_RATE = 1e-3
-WEIGHT_DECAY = 1e-4
+NUM_EPOCHS = 120       # created from total data / batch size
+LEARNING_RATE = 1e-3   # Starting learning rate. Commonly used for ADAM
+WEIGHT_DECAY = 1e-4    # Common starting weight decay for regularization
 # =======================================================
 
 def print_system_info():
@@ -526,45 +527,85 @@ def main():
     print("STARTING TRAINING")
     print("="*60)
 
-    loss_history = []
-    lr_history = []
+    # Loss tracking
+    train_loss_history = []
+    val_loss_history = []
 
-    import time
+    # Accuracy tracking
+    train_acc_history = []
+    val_acc_history = []
+
+    
     start_time = time.time()
 
+    plt.ion()
+    fig, ax = plt.subplots(figsize = (12,5))
+
     for epoch in range(NUM_EPOCHS):
+        # ----- TRAIN ------
         model.train()
-        epoch_loss = 0.0
-        epoch_start = time.time()
+        epoch_train_loss = 0.0
+        correct_train = 0
+        total_train = 0
 
         for imgs, msks, _ in train_loader:
             imgs, msks = imgs.to(device), msks.to(device)
             opt.zero_grad()
             logits = model(imgs)
             loss = criterion(logits, msks.float())
-
-            if not torch.isfinite(loss):
-                print(f"[ERROR] Non-finite loss at epoch {epoch+1}")
-                raise RuntimeError("Non-finite loss")
-
             loss.backward()
             opt.step()
-            epoch_loss += loss.item() * imgs.size(0)
+            epoch_train_loss += loss.item() * imgs.size(0)
+            # For accuracy: 
+            preds = (torch.sigmoid(logits).detach().cpu().numpy() > 0.5)
+            labels = msks.detach().cpu().numpy()
+            correct_train += (preds == labels).sum()
+            total_train += labels.size
 
-        scheduler.step()
+        avg_train_loss = epoch_train_loss / len(train_loader.dataset)
+        train_loss_history.append(avg_train_loss)
+        train_acc_history.append(correct_train / total_train)
 
-        mean_loss = epoch_loss / len(train_loader.dataset)
-        loss_history.append(mean_loss)
-        lr_history.append(opt.param_groups[0]['lr'])
+        # ----- VALIDATION ------
+        model.eval()
+        epoch_val_loss = 0.0
+        correct_val = 0
+        total_val = 0
+        with torch.no_grad():
+            for imgs, msks, _ in val_loader:
+                imgs, msks = imgs.to(device), msks.to(device)
+                logits = model(imgs)
+                loss = criterion(logits, msks.float())
+                epoch_val_loss += loss.item() * imgs.size(0)
+                # For accuracy:
+                preds = (torch.sigmoid(logits).detach().cpu().numpy() > 0.5)
+                labels = msks.detach().cpu().numpy()
+                correct_val += (preds == labels).sum()
+                total_val += labels.size
 
-        epoch_time = time.time() - epoch_start
+        avg_val_loss = epoch_val_loss / len(val_loader.dataset)
+        val_loss_history.append(avg_val_loss)
+        val_acc_history.append(correct_val / total_val)
 
-        # Print progress every 10 epochs or on last epoch
-        if (epoch + 1) % 10 == 0 or epoch == 0 or epoch == NUM_EPOCHS - 1:
-            elapsed = time.time() - start_time
-            print(f"Epoch {epoch+1:3d}/{NUM_EPOCHS}: loss={mean_loss:.4f}, lr={opt.param_groups[0]['lr']:.6f}, "
-                  f"epoch_time={epoch_time:.2f}s, total_time={elapsed/60:.1f}min")
-            print_gpu_memory()
+        # ---- Optional: print progress every epoch
+
+        print(f"Epoch {epoch+1}/{NUM_EPOCHS} | "
+            f"Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f} | "
+            f"Train Acc: {train_acc_history[-1]:.3f}, Val Acc: {val_acc_history[-1]:.3f}")
+        
+        # --- Live PLOT (for notebook/shell, to update after each epoch)
+        
+        # update plot
+        ax.clear()
+        ax.plot(train_loss_history, label="Train Loss")
+        ax.plot(val_loss_history, label="Val Loss")
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Loss")
+        ax.set_title("Training and Validation Loss per Epoch")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+        plt.pause(0.01)  # let the UI update                    
 
     total_time = time.time() - start_time
     print("\n" + "="*60)
@@ -580,14 +621,24 @@ def main():
         'epoch': NUM_EPOCHS,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': opt.state_dict(),
-        'loss_history': loss_history,
+        'loss_history': train_loss_history,
         'lr_history': lr_history,
     }, save_path)
     print(f"\nModel saved to: {save_path}")
 
+# print model parameters. # params directly relates to memory 
+# Read the .pth file and visualize what it looks like (what does each image and mask look like?)
+# Plot loss and accuracy 
+# Make sure to output the weights just in case things go bad 
+# model.summary()
+
+'''
     # Plot training curves
+    epochs_range = range(1, epochs + 1)
+
     fig, ax1 = plt.subplots(figsize=(10,6))
-    ax1.plot(loss_history, color='tab:blue', label='Loss')
+    ax1.plot(epochs_range, train_loss_history, color='tab:blue', label='Training Loss')
+    ax1.plot(epochs_range, val_loss_history, color='tab:cayan', label='Validatin Loss')
     ax1.set_xlabel('Epoch')
     ax1.set_ylabel('Loss', color='tab:blue')
     ax1.tick_params(axis='y', labelcolor='tab:blue')
@@ -600,8 +651,11 @@ def main():
 
     fig.suptitle("Training Loss and Learning Rate vs. Epoch")
     fig.tight_layout()
-    plt.savefig('./claudified/training_curves.png', dpi=150, bbox_inches='tight')
+    
     print(f"Training curves saved to: ./claudified/training_curves.png")
+
+'''
+plt.savefig('./claudified/training_curves.png', dpi=150, bbox_inches='tight')    
 
 if __name__ == "__main__":
     main()
